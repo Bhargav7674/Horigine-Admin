@@ -1,0 +1,34 @@
+<svg width="1200" height="600" viewBox="0 0 1200 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="600" fill="#000000"/>
+  <g transform="translate(0 10)">
+    <path d="M235 150C235 100 274 60 323 60H420C485 60 530 105 530 170C530 203 512 233 484 253L580 397H465L399 307H279L235 150Z" fill="#E7F9FF" fill-opacity="0.72" stroke="#D9F6FF" stroke-width="8"/>
+    <path d="M270 175C270 131 304 96 348 96H410C454 96 490 132 490 176C490 203 476 228 450 244L520 346H450L387 270H311L270 175Z" fill="url(#paint0_linear)"/>
+    <path d="M323 96C292 96 267 121 267 152V426C267 457 292 482 323 482H451C483 482 510 455 510 423V264L373 424H382L530 264V423C530 455 503 482 471 482H499C531 482 559 456 559 423V176C559 132 523 96 479 96H323Z" fill="url(#paint1_linear)" opacity="0.8"/>
+    <path d="M302 148C302 117 327 92 358 92H437C491 92 530 133 530 187V213C530 265 490 305 438 305H345L302 148Z" fill="#DFFBFF" opacity="0.39"/>
+    <path d="M455 525L464 475L520 423L607 423L550 525H455Z" fill="#F8F9FF" fill-opacity="0.85"/>
+    <path d="M526 60L650 60C727 60 781 114 781 191V212C781 242 764 268 736 284L675 324L598 232L690 232L640 182L533 182L526 60Z" fill="#1CC7ED" fill-opacity="0.8"/>
+    <path d="M620 96L740 96C797 96 842 141 842 198V221C842 259 815 291 777 299L680 321L618 267L705 267L675 232L585 232L620 96Z" fill="#00BDF2" opacity="0.8"/>
+    <path d="M785 111L860 111C892 111 919 138 919 170V172C919 205 892 232 860 232H785V111Z" fill="#7BE7FF" opacity="0.75"/>
+  </g>
+  <g transform="translate(530 40)">
+    <text x="0" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">H</text>
+    <text x="210" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">O</text>
+    <text x="420" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">R</text>
+    <text x="645" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">I</text>
+    <text x="735" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">G</text>
+    <text x="956" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">I</text>
+    <text x="1048" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">N</text>
+    <text x="1262" y="260" font-family="Arial, Helvetica, sans-serif" font-size="300" font-weight="800" letter-spacing="-10" fill="#DFFBFF" opacity="0.97">E</text>
+    <text x="0" y="420" font-family="Arial, Helvetica, sans-serif" font-size="86" font-weight="800" letter-spacing="8" fill="#F6A142">IT SOLUTIONS &amp; STAFFING SERVICES</text>
+  </g>
+  <defs>
+    <linearGradient id="paint0_linear" x1="334" y1="80" x2="465" y2="255" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DFFBFF"/>
+      <stop offset="1" stop-color="#8FE6FF"/>
+    </linearGradient>
+    <linearGradient id="paint1_linear" x1="312" y1="103" x2="535" y2="477" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7A741"/>
+      <stop offset="1" stop-color="#FE5D3D"/>
+    </linearGradient>
+  </defs>
+</svg>

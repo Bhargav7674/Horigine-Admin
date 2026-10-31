@@ -1,49 +1,307 @@
-import { useMemo, useState } from 'react';
-import { LayoutDashboard, BriefcaseBusiness, UsersRound, Plus, Search, Bell, ChevronDown, MapPin, Clock3, IndianRupee, Eye, Pencil, MoreHorizontal, X, LogOut, Menu, Building2, CalendarDays, Filter, ArrowUpRight, CheckCircle2, FileText, Trash2, Mail, Phone, Download, UserRound, LockKeyhole, Sparkles } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { DashboardPage } from './components/dashboard/DashboardPage';
+import { InquiryListPage } from './components/inquiries/InquiryListPage';
+import { JobListPage } from './components/jobs/JobListPage';
+import { Header } from './components/layout/Header';
+import { Sidebar } from './components/layout/Sidebar';
+import { UserRolePage } from './components/users/UserRolePage';
+import { api, normalizeApiError, setStoredApiKey } from './services/api';
+import { authService, getCurrentSession, persistSession } from './services/authService';
+import type { Inquiry, Job, JobCreatePayload, RoleRecord, UserRecord } from './types';
 
-type Job = {id:number;title:string;department:string;location:string;type:string;mode:string;experience:string;salary:string;status:'Published'|'Draft'|'Closed';applicants:number;posted:string;description:string;skills:string;education:string;vacancies:number;deadline:string};
-type Applicant = {id:number;name:string;role:string;email:string;phone:string;experience:string;location:string;date:string;status:string;initials:string;color:string};
-const initialJobs:Job[]=[
-{id:1,title:'Senior Flutter Developer',department:'Engineering',location:'Bengaluru, Karnataka',type:'Full-time',mode:'Hybrid',experience:'3–5 years',salary:'₹8–12 LPA',status:'Published',applicants:28,posted:'Oct 22, 2026',description:'Build polished cross-platform mobile experiences and collaborate with product, design, and backend teams.',skills:'Flutter, Dart, BLoC, REST APIs, Firebase, Git',education:'Bachelor’s degree or equivalent practical experience',vacancies:2,deadline:'2026-11-30'},
-{id:2,title:'Talent Acquisition Specialist',department:'Human Resources',location:'Hyderabad, Telangana',type:'Full-time',mode:'On-site',experience:'2–4 years',salary:'₹4–6 LPA',status:'Published',applicants:16,posted:'Oct 20, 2026',description:'Own end-to-end recruitment, partner with hiring managers, and build a strong candidate pipeline.',skills:'Sourcing, ATS, interviewing, stakeholder management',education:'Bachelor’s degree in HR or related field preferred',vacancies:1,deadline:'2026-11-15'},
-{id:3,title:'Frontend Developer – React',department:'Engineering',location:'Remote, India',type:'Full-time',mode:'Remote',experience:'1–3 years',salary:'₹5–8 LPA',status:'Draft',applicants:0,posted:'Oct 24, 2026',description:'Create accessible, responsive web interfaces using React and TypeScript.',skills:'React, TypeScript, HTML, CSS, REST APIs',education:'Any degree or equivalent experience',vacancies:1,deadline:'2026-12-01'},
-{id:4,title:'Business Development Executive',department:'Sales',location:'Bengaluru, Karnataka',type:'Full-time',mode:'On-site',experience:'1–3 years',salary:'₹3–5 LPA',status:'Closed',applicants:42,posted:'Oct 05, 2026',description:'Develop client relationships, qualify leads, and support revenue growth.',skills:'Communication, CRM, negotiation, lead generation',education:'Bachelor’s degree preferred',vacancies:3,deadline:'2026-10-20'}];
-const initialApplicants:Applicant[]=[
-{id:1,name:'Ananya Rao',role:'Senior Flutter Developer',email:'ananya.rao@example.com',phone:'+91 98765 43210',experience:'4 years',location:'Bengaluru',date:'Oct 24, 2026',status:'New',initials:'AR',color:'lavender'},
-{id:2,name:'Rahul Sharma',role:'Senior Flutter Developer',email:'rahul.s@example.com',phone:'+91 98220 11223',experience:'3.5 years',location:'Pune',date:'Oct 23, 2026',status:'Shortlisted',initials:'RS',color:'mint'},
-{id:3,name:'Priya Nair',role:'Talent Acquisition Specialist',email:'priya.nair@example.com',phone:'+91 90080 12345',experience:'3 years',location:'Hyderabad',date:'Oct 22, 2026',status:'Reviewing',initials:'PN',color:'peach'},
-{id:4,name:'Karthik Reddy',role:'Senior Flutter Developer',email:'karthik.r@example.com',phone:'+91 98450 55443',experience:'5 years',location:'Chennai',date:'Oct 21, 2026',status:'Interview',initials:'KR',color:'sky'},
-{id:5,name:'Sneha Iyer',role:'Business Development Executive',email:'sneha.iyer@example.com',phone:'+91 99001 23456',experience:'2 years',location:'Bengaluru',date:'Oct 20, 2026',status:'Rejected',initials:'SI',color:'rose'}];
-const nav=[{label:'Overview',icon:LayoutDashboard},{label:'Job postings',icon:BriefcaseBusiness},{label:'Applicants',icon:UsersRound}];
-function App(){
- const [loggedIn,setLoggedIn]=useState(false); const [email,setEmail]=useState('admin@horigine.com'); const [password,setPassword]=useState('Horigine@123'); const [loginError,setLoginError]=useState('');
- const [page,setPage]=useState('Overview'); const [jobs,setJobs]=useState<Job[]>(()=>{try{return JSON.parse(localStorage.getItem('horigine-admin-jobs')||'null')||initialJobs}catch{return initialJobs}}); const [applicants,setApplicants]=useState<Applicant[]>(()=>{try{return JSON.parse(localStorage.getItem('horigine-admin-applicants')||'null')||initialApplicants}catch{return initialApplicants}});
- const [showJobForm,setShowJobForm]=useState(false); const [editing,setEditing]=useState<Job|null>(null); const [search,setSearch]=useState(''); const [jobFilter,setJobFilter]=useState('All'); const [appFilter,setAppFilter]=useState('All'); const [appSearch,setAppSearch]=useState(''); const [selectedApplicant,setSelectedApplicant]=useState<Applicant|null>(null); const [mobileNav,setMobileNav]=useState(false); const [toast,setToast]=useState('');
- const notify=(msg:string)=>{setToast(msg);window.setTimeout(()=>setToast(''),2600)};
- const persistJobs=(next:Job[])=>{setJobs(next);localStorage.setItem('horigine-admin-jobs',JSON.stringify(next))}; const persistApplicants=(next:Applicant[])=>{setApplicants(next);localStorage.setItem('horigine-admin-applicants',JSON.stringify(next))};
- const totalApplicants=applicants.length+jobs.reduce((n,j)=>n+Math.max(0,j.applicants-(initialJobs.find(x=>x.id===j.id)?.applicants||0)),0);
- const filteredJobs=useMemo(()=>jobs.filter(j=>(jobFilter==='All'||j.status===jobFilter)&&(j.title+' '+j.department+' '+j.location).toLowerCase().includes(search.toLowerCase())),[jobs,jobFilter,search]);
- const filteredApplicants=useMemo(()=>applicants.filter(a=>(appFilter==='All'||a.status===appFilter)&&(a.name+' '+a.role+' '+a.email).toLowerCase().includes(appSearch.toLowerCase())),[applicants,appFilter,appSearch]);
- const go=(p:string)=>{setPage(p);setMobileNav(false)};
- const saveJob=(data:Omit<Job,'id'|'applicants'|'posted'> & {id?:number})=>{let next:Job[];if(data.id){next=jobs.map(j=>j.id===data.id?{...j,...data,id:j.id}:j);notify('Job posting updated')}else{next=[{...data,id:Math.max(0,...jobs.map(j=>j.id))+1,applicants:0,posted:new Date().toLocaleDateString('en-IN',{month:'short',day:'2-digit',year:'numeric'})},...jobs];notify(data.status==='Published'?'Job published successfully':'Job saved as draft')};persistJobs(next);setShowJobForm(false);setEditing(null)};
- const updateApplicant=(id:number,status:string)=>{persistApplicants(applicants.map(a=>a.id===id?{...a,status}:a));setSelectedApplicant(a=>a?{...a,status}:null);notify('Applicant status updated')};
- if(!loggedIn)return <div className="login-page"><div className="login-art"><div className="brand"><span className="brand-mark">h</span><span>horigine<span className="brand-light">.</span></span></div><div className="art-content"><div className="eyebrow"><Sparkles size={15}/> HIRING, MADE HUMAN</div><h1>Find the people<br/>who move you <em>forward.</em></h1><p>A calmer, smarter workspace for your hiring team to find great talent and build what’s next.</p><div className="login-stats"><div><strong>01</strong><span>One hiring hub</span></div><div><strong>360°</strong><span>Candidate visibility</span></div><div><strong>∞</strong><span>Possibilities</span></div></div><div className="orb orb-one"/><div className="orb orb-two"/></div><div className="login-foot">© 2026 Horigine Staffing · People first, always.</div></div><div className="login-panel"><div className="login-top"><span className="secure-label"><LockKeyhole size={14}/> SECURE ADMIN ACCESS</span><span className="help-label">Need help? <a href="mailto:careers@horigine.com">Contact support</a></span></div><form className="login-form" onSubmit={e=>{e.preventDefault();if(email.trim()&&password.length>=6){setLoggedIn(true);setLoginError('')}else setLoginError('Enter a valid email or mobile number and password.')}}><div className="welcome-icon"><Building2 size={23}/></div><span className="form-kicker">WELCOME BACK</span><h2>Sign in to your<br/>workspace</h2><p>Enter your admin credentials to continue.</p><label>Email or mobile number</label><div className="input-wrap"><Mail size={17}/><input value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@horigine.com" autoComplete="username"/></div><label>Password</label><div className="input-wrap"><LockKeyhole size={17}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Enter your password" autoComplete="current-password"/></div><div className="login-options"><label className="remember"><input type="checkbox" defaultChecked/> Remember me</label><button type="button" className="text-button" onClick={()=>setLoginError('For this UI demo, use the demo credentials shown below.')}>Forgot password?</button></div>{loginError&&<div className="login-error">{loginError}</div>}<button className="primary-btn login-btn" type="submit">Sign in to admin <ArrowUpRight size={17}/></button><div className="demo-hint"><span>DEMO ACCESS</span><div><b>admin@horigine.com</b><b>Horigine@123</b></div><small>UI prototype only — connect a secure authentication service before production.</small></div></form><div className="login-bottom">Protected workspace <span>·</span> Privacy <span>·</span> Terms</div></div></div>;
- return <div className="app-shell"><aside className={`sidebar ${mobileNav?'sidebar-open':''}`}><div className="sidebar-brand"><div className="brand"><span className="brand-mark">h</span><span>horigine<span className="brand-light">.</span></span></div><span className="admin-chip">ADMIN</span></div><div className="workspace-switch"><div className="workspace-logo"><Building2 size={19}/></div><div><b>Horigine Staffing</b><span>Recruitment workspace</span></div><ChevronDown size={15}/></div><div className="nav-caption">WORKSPACE</div><nav>{nav.map(n=><button key={n.label} onClick={()=>go(n.label)} className={`nav-item ${page===n.label?'active':''}`}><n.icon size={18}/><span>{n.label}</span>{n.label==='Applicants'&&<span className="nav-count">{applicants.length}</span>}</button>)}</nav><div className="sidebar-divider"/><div className="nav-caption">QUICK ACTIONS</div><button className="nav-item" onClick={()=>{setEditing(null);setShowJobForm(true);setMobileNav(false)}}><Plus size={18}/><span>Create a job</span></button><button className="nav-item" onClick={()=>go('Applicants')}><FileText size={18}/><span>Review applications</span></button><div className="sidebar-bottom"><div className="help-card"><div className="help-icon"><Sparkles size={17}/></div><b>Need a hand?</b><p>Our team is here if you need help with hiring.</p><a href="mailto:careers@horigine.com">Contact support <ArrowUpRight size={13}/></a></div><button className="profile-row" onClick={()=>{setLoggedIn(false);setPassword('')}}><div className="avatar admin-avatar">BH</div><div className="profile-info"><b>Bhargav H.</b><span>Administrator</span></div><LogOut size={17}/></button></div></aside>{mobileNav&&<div className="nav-backdrop" onClick={()=>setMobileNav(false)}/>}
- <main className="main-area"><header className="topbar"><div className="topbar-left"><button className="mobile-menu" onClick={()=>setMobileNav(!mobileNav)}><Menu size={20}/></button><div className="breadcrumb">Workspace <span>/</span> <b>{page}</b></div></div><div className="topbar-right"><div className="today"><CalendarDays size={15}/>{new Date().toLocaleDateString('en-IN',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div><button className="icon-btn notification-btn" onClick={()=>notify('You’re all caught up!')}><Bell size={18}/><i/></button><div className="top-avatar">BH</div></div></header>
- <div className="page-content">{page==='Overview'&&<><div className="page-heading"><div><div className="page-overline">MONDAY, LET’S MAKE A GREAT MATCH</div><h1>Good afternoon, Bhargav <span>✳</span></h1><p>Here’s what’s happening across your hiring pipeline today.</p></div><button className="primary-btn" onClick={()=>{setEditing(null);setShowJobForm(true)}}><Plus size={18}/> Create a job</button></div><div className="welcome-banner"><div className="banner-copy"><span className="banner-tag"><Sparkles size={13}/> YOUR HIRING AT A GLANCE</span><h2>Great teams start with<br/>great people.</h2><p>Keep your hiring moving. Review new applicants and find your next great fit.</p><button onClick={()=>go('Applicants')}>Review applicants <ArrowUpRight size={15}/></button></div><div className="banner-visual"><div className="banner-ring ring-a"/><div className="banner-ring ring-b"/><div className="banner-person person-a">AR</div><div className="banner-person person-b">RS</div><div className="banner-person person-c">PN</div><div className="banner-person person-d">KR</div><div className="match-pill"><span/> Talent is waiting <b>↗</b></div><div className="banner-orbit-dot"/></div></div><div className="section-heading"><div><h2>Your hiring snapshot</h2><p>A quick look at your recruitment activity.</p></div><button className="subtle-button" onClick={()=>go('Job postings')}>View reports <ArrowUpRight size={15}/></button></div><div className="stats-grid"><Stat icon={<BriefcaseBusiness size={19}/>} label="Active job postings" value={jobs.filter(j=>j.status==='Published').length.toString()} note="Open to applications" tone="blue"/><Stat icon={<UsersRound size={19}/>} label="Total applicants" value={String(totalApplicants)} note="Across all job postings" tone="purple"/><Stat icon={<UserRound size={19}/>} label="New applicants" value={String(applicants.filter(a=>a.status==='New').length)} note="Ready for your review" tone="orange"/><Stat icon={<CheckCircle2 size={19}/>} label="Shortlisted" value={String(applicants.filter(a=>a.status==='Shortlisted'||a.status==='Interview').length)} note="Moving through the funnel" tone="green"/></div><div className="dashboard-grid"><section className="panel jobs-panel"><div className="panel-heading"><div><h3>Recent job postings</h3><p>Keep an eye on your open roles.</p></div><button className="link-button" onClick={()=>go('Job postings')}>View all <ArrowUpRight size={14}/></button></div><div className="recent-jobs">{jobs.slice(0,4).map(j=><div className="recent-job" key={j.id}><div className="job-symbol"><BriefcaseBusiness size={17}/></div><div className="recent-job-main"><b>{j.title}</b><span><MapPin size={12}/>{j.location} <i>·</i> {j.type}</span></div><div className="recent-job-meta"><b>{j.applicants}</b><span>applicants</span></div><Status status={j.status}/><button className="dots-btn" onClick={()=>{setEditing(j);setShowJobForm(true)}}><MoreHorizontal size={18}/></button></div>)}</div><button className="panel-footer-btn" onClick={()=>go('Job postings')}>See all job postings <ArrowUpRight size={15}/></button></section><section className="panel applicants-panel"><div className="panel-heading"><div><h3>Latest applicants</h3><p>People who recently applied.</p></div><button className="link-button" onClick={()=>go('Applicants')}>View all <ArrowUpRight size={14}/></button></div><div className="latest-list">{applicants.slice(0,4).map(a=><button className="latest-applicant" key={a.id} onClick={()=>setSelectedApplicant(a)}><Avatar a={a}/><div className="latest-person"><b>{a.name}</b><span>{a.role}</span></div><div className="latest-date">{a.date}</div></button>)}</div><button className="panel-footer-btn" onClick={()=>go('Applicants')}>Explore applicant pipeline <ArrowUpRight size={15}/></button></section></div><div className="bottom-note"><Sparkles size={15}/><span><b>A little hiring tip</b> — Clear salary ranges and specific skills help candidates decide if a role is right for them.</span></div></>}
- {page==='Job postings'&&<><div className="page-heading"><div><div className="page-overline">YOUR RECRUITMENT PIPELINE</div><h1>Job postings</h1><p>Create, organize, and track every open role in one place.</p></div><button className="primary-btn" onClick={()=>{setEditing(null);setShowJobForm(true)}}><Plus size={18}/> Create a job</button></div><div className="stats-grid compact-stats"><Stat icon={<BriefcaseBusiness size={19}/>} label="All postings" value={String(jobs.length)} note="Total roles" tone="blue"/><Stat icon={<CheckCircle2 size={19}/>} label="Published" value={String(jobs.filter(j=>j.status==='Published').length)} note="Accepting applications" tone="green"/><Stat icon={<FileText size={19}/>} label="Drafts" value={String(jobs.filter(j=>j.status==='Draft').length)} note="Not yet published" tone="purple"/><Stat icon={<UsersRound size={19}/>} label="Applications" value={String(jobs.reduce((n,j)=>n+j.applicants,0))} note="Across listed roles" tone="orange"/></div><div className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={17}/><input placeholder="Search job title, team or location..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="toolbar-right"><div className="select-wrap"><Filter size={15}/><select value={jobFilter} onChange={e=>setJobFilter(e.target.value)}><option>All</option><option>Published</option><option>Draft</option><option>Closed</option></select></div><button className="outline-btn" onClick={()=>notify('Export is available after backend integration.')}><Download size={15}/> Export</button></div></div><div className="table-scroll"><table><thead><tr><th>JOB TITLE</th><th>STATUS</th><th>APPLICANTS</th><th>WORKPLACE</th><th>POSTED ON</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filteredJobs.map(j=><tr key={j.id}><td><div className="table-job"><div className="job-symbol"><BriefcaseBusiness size={17}/></div><div><b>{j.title}</b><span>{j.department} · {j.type}</span></div></div></td><td><Status status={j.status}/></td><td><button className="applicant-count" onClick={()=>{setAppSearch(j.title);go('Applicants')}}><UsersRound size={14}/>{j.applicants} applicants</button></td><td><div className="table-location">{j.location}<span>{j.mode}</span></div></td><td className="date-cell">{j.posted}</td><td><div className="row-actions"><button title="Edit job" onClick={()=>{setEditing(j);setShowJobForm(true)}}><Pencil size={15}/></button><button title="More actions" onClick={()=>{persistJobs(jobs.map(x=>x.id===j.id?{...x,status:x.status==='Published'?'Closed':'Published'}:x));notify(j.status==='Published'?'Job closed':'Job published')}}><MoreHorizontal size={17}/></button></div></td></tr>)}</tbody></table>{filteredJobs.length===0&&<div className="empty-state"><BriefcaseBusiness size={28}/><b>No job postings found</b><span>Try another search or create a new role.</span></div>}</div><div className="table-footer">Showing <b>{filteredJobs.length}</b> of <b>{jobs.length}</b> job postings <span>Changes are saved in this browser.</span></div></div></>}
- {page==='Applicants'&&<><div className="page-heading"><div><div className="page-overline">YOUR PEOPLE PIPELINE</div><h1>Applicants <span className="title-count">{applicants.length}</span></h1><p>Review profiles, track progress, and keep candidates moving.</p></div><button className="outline-btn" onClick={()=>notify('Applicant export is available after backend integration.')}><Download size={16}/> Export list</button></div><div className="stats-grid compact-stats"><Stat icon={<UsersRound size={19}/>} label="All applicants" value={String(applicants.length)} note="Candidate profiles" tone="blue"/><Stat icon={<Sparkles size={19}/>} label="New to review" value={String(applicants.filter(a=>a.status==='New').length)} note="Awaiting first review" tone="orange"/><Stat icon={<CheckCircle2 size={19}/>} label="Shortlisted" value={String(applicants.filter(a=>a.status==='Shortlisted').length)} note="Potential matches" tone="green"/><Stat icon={<CalendarDays size={19}/>} label="Interview stage" value={String(applicants.filter(a=>a.status==='Interview').length)} note="Next step: connect" tone="purple"/></div><div className="panel table-panel"><div className="table-toolbar"><div className="search-field"><Search size={17}/><input placeholder="Search name, email or job title..." value={appSearch} onChange={e=>setAppSearch(e.target.value)}/></div><div className="toolbar-right"><div className="select-wrap"><Filter size={15}/><select value={appFilter} onChange={e=>setAppFilter(e.target.value)}><option>All</option><option>New</option><option>Reviewing</option><option>Shortlisted</option><option>Interview</option><option>Rejected</option><option>Hired</option></select></div></div></div><div className="table-scroll"><table><thead><tr><th>CANDIDATE</th><th>APPLIED FOR</th><th>EXPERIENCE</th><th>APPLIED ON</th><th>STAGE</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filteredApplicants.map(a=><tr key={a.id}><td><button className="candidate-cell" onClick={()=>setSelectedApplicant(a)}><Avatar a={a}/><span><b>{a.name}</b><small>{a.email}</small></span></button></td><td><div className="app-role">{a.role}</div></td><td>{a.experience}</td><td className="date-cell">{a.date}</td><td><select className={`status-select status-${a.status.toLowerCase()}`} value={a.status} onChange={e=>updateApplicant(a.id,e.target.value)}><option>New</option><option>Reviewing</option><option>Shortlisted</option><option>Interview</option><option>Rejected</option><option>Hired</option></select></td><td><button className="row-action-single" onClick={()=>setSelectedApplicant(a)}><ArrowUpRight size={17}/></button></td></tr>)}</tbody></table>{filteredApplicants.length===0&&<div className="empty-state"><UsersRound size={28}/><b>No applicants found</b><span>Try another search or status filter.</span></div>}</div><div className="table-footer">Showing <b>{filteredApplicants.length}</b> of <b>{applicants.length}</b> applicants <span>Sample candidate data for UI preview.</span></div></div></>}
- </div></main>
- {showJobForm&&<JobModal job={editing} onClose={()=>{setShowJobForm(false);setEditing(null)}} onSave={saveJob}/>}
- {selectedApplicant&&<div className="modal-backdrop" onClick={()=>setSelectedApplicant(null)}><div className="applicant-modal" onClick={e=>e.stopPropagation()}><div className="modal-topline"><span>APPLICANT PROFILE</span><button className="close-btn" onClick={()=>setSelectedApplicant(null)}><X size={19}/></button></div><div className="applicant-profile-head"><Avatar a={selectedApplicant} large/><div><h2>{selectedApplicant.name}</h2><p>{selectedApplicant.role}</p><Status status={selectedApplicant.status}/></div></div><div className="profile-details"><div><Mail size={16}/><span><small>Email address</small><b>{selectedApplicant.email}</b></span></div><div><Phone size={16}/><span><small>Phone number</small><b>{selectedApplicant.phone}</b></span></div><div><MapPin size={16}/><span><small>Location</small><b>{selectedApplicant.location}</b></span></div><div><Clock3 size={16}/><span><small>Experience</small><b>{selectedApplicant.experience}</b></span></div></div><div className="profile-note"><FileText size={18}/><div><b>Resume & application</b><p>Resume preview and file download will be available when connected to your applicant database.</p></div></div><label className="modal-label">Update candidate stage</label><select className="full-select" value={selectedApplicant.status} onChange={e=>updateApplicant(selectedApplicant.id,e.target.value)}><option>New</option><option>Reviewing</option><option>Shortlisted</option><option>Interview</option><option>Rejected</option><option>Hired</option></select><button className="primary-btn full-btn" onClick={()=>setSelectedApplicant(null)}>Done</button></div></div>}
- {toast&&<div className="toast"><CheckCircle2 size={17}/>{toast}</div>}
- </div>
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(Boolean(getCurrentSession()));
+  const [activePage, setActivePage] = useState('Overview');
+  const [jobFormOpenRequested, setJobFormOpenRequested] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const routeMap: Record<string, string> = {
+    Overview: '/home',
+    'Job postings': '/jobs',
+    Inquiries: '/inquiries',
+    'Users & Roles': '/users',
+  };
+
+  const getRouteFromPage = (page: string) => routeMap[page] ?? '/home';
+
+  const totalApplicants = useMemo(
+    () => jobs.reduce((sum, job) => sum + (job.applicants_count ?? 0), 0),
+    [jobs],
+  );
+
+  const loadData = async () => {
+    try {
+      const [jobsData, inquiriesPage, usersData, rolesData] = await Promise.all([
+        api.getJobs().catch(() => []),
+        api.getInquiries({ page: 1, page_size: 20 }).catch(() => ({ items: [] as Inquiry[], page: 1, page_size: 20, total: 0 })),
+        api.getUsers().catch(() => []),
+        api.getRoles().catch(() => []),
+      ]);
+
+      setJobs(jobsData);
+      setInquiries(inquiriesPage.items ?? []);
+      setUsers(usersData);
+      setRoles(rolesData);
+    } catch {
+      setError('Unable to load dashboard data right now.');
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void loadData();
+  }, [isAuthenticated]);
+
+  const handleLogin = async ({ email, password }: { email: string; password: string }) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const loginResponse = await authService.login({ email, password });
+
+      persistSession({
+        token: loginResponse.token,
+        user: loginResponse.user,
+      });
+
+      const meUser = await authService.getMe();
+      persistSession({
+        token: loginResponse.token,
+        user: meUser,
+      });
+
+      setIsAuthenticated(true);
+      setActivePage('Overview');
+      window.history.pushState({}, '', '/home');
+      await loadData();
+    } catch (loginError) {
+      persistSession(null);
+      setError(normalizeApiError(loginError));
+      setIsAuthenticated(false);
+      if (window.location.pathname !== '/login') {
+        window.history.replaceState({}, '', '/login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // no-op: session clears even if the backend logout call fails
+    }
+
+    persistSession(null);
+    setIsAuthenticated(false);
+    setError('');
+    setActivePage('Overview');
+    window.history.replaceState({}, '', '/login');
+  };
+
+  const handleCreateJob = async (payload: Partial<JobCreatePayload>) => {
+    const jobPayload: JobCreatePayload = {
+      title: String(payload.title ?? '').trim(),
+      company_id: Number(payload.company_id ?? 1),
+      description: String(payload.description ?? '').trim(),
+      requirements: payload.requirements ? String(payload.requirements) : undefined,
+      location: payload.location ? String(payload.location) : undefined,
+      job_type: payload.job_type ? String(payload.job_type) : undefined,
+      experience_level: payload.experience_level ? String(payload.experience_level) : undefined,
+      salary_min: payload.salary_min !== undefined ? Number(payload.salary_min) : undefined,
+      salary_max: payload.salary_max !== undefined ? Number(payload.salary_max) : undefined,
+    };
+
+    if (!jobPayload.title || !jobPayload.company_id || !jobPayload.description) {
+      setError('Please fill in the job title, company, and description fields.');
+      return;
+    }
+
+    try {
+      const created = await api.createJob(jobPayload);
+      setJobs((current) => [created, ...current]);
+      setError('');
+    } catch (jobError) {
+      setError(normalizeApiError(jobError));
+    }
+  };
+
+  const handleUpdateJob = async (jobId: number | string, payload: Partial<JobCreatePayload>) => {
+    const jobPayload: JobCreatePayload = {
+      title: String(payload.title ?? '').trim(),
+      company_id: Number(payload.company_id ?? 1),
+      description: String(payload.description ?? '').trim(),
+      requirements: payload.requirements ? String(payload.requirements) : undefined,
+      location: payload.location ? String(payload.location) : undefined,
+      job_type: payload.job_type ? String(payload.job_type) : undefined,
+      experience_level: payload.experience_level ? String(payload.experience_level) : undefined,
+      salary_min: payload.salary_min !== undefined ? Number(payload.salary_min) : undefined,
+      salary_max: payload.salary_max !== undefined ? Number(payload.salary_max) : undefined,
+    };
+
+    if (!jobPayload.title || !jobPayload.company_id || !jobPayload.description) {
+      setError('Please fill in the job title, company, and description fields.');
+      return;
+    }
+
+    try {
+      const updated = await api.updateJob(jobId, jobPayload);
+      setJobs((current) => current.map((job) => String(job.id) === String(jobId) ? { ...job, ...updated } : job));
+      setError('');
+    } catch (jobError) {
+      setError(normalizeApiError(jobError));
+    }
+  };
+
+  const handleDeleteJob = async (jobId: number | string) => {
+    try {
+      await api.deleteJob(jobId);
+      setJobs((current) => current.filter((job) => String(job.id) !== String(jobId)));
+      setError('');
+    } catch (jobError) {
+      setError(normalizeApiError(jobError));
+    }
+  };
+
+  const handleCreateUser = async (payload: Partial<UserRecord>) => {
+    try {
+      const created = await api.createUser(payload);
+      setUsers((current) => [created, ...current]);
+    } catch (userError) {
+      setError(normalizeApiError(userError));
+    }
+  };
+
+  const handleCreateRole = async (payload: Partial<RoleRecord>) => {
+    try {
+      const created = await api.createRole(payload);
+      setRoles((current) => [created, ...current]);
+    } catch (roleError) {
+      setError(normalizeApiError(roleError));
+    }
+  };
+
+  const navigate = (page: string) => {
+    setActivePage(page);
+    if (page !== 'Job postings') {
+      setJobFormOpenRequested(false);
+    }
+    setMobileNavOpen(false);
+    const nextRoute = getRouteFromPage(page);
+    if (nextRoute) {
+      window.history.pushState({}, '', nextRoute);
+    }
+  };
+
+  const handleQuickCreateJob = () => {
+    setActivePage('Job postings');
+    setJobFormOpenRequested(true);
+  };
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'Overview':
+        return <DashboardPage jobs={jobs} inquiries={inquiries} users={users} onNavigate={navigate} />;
+      case 'Job postings':
+        return (
+          <JobListPage
+            jobs={jobs}
+            onCreateJob={handleCreateJob}
+            onUpdateJob={handleUpdateJob}
+            onDeleteJob={handleDeleteJob}
+            onRefresh={loadData}
+            initialCreateOpen={jobFormOpenRequested}
+            onCreateFormOpened={() => setJobFormOpenRequested(false)}
+          />
+        );
+      case 'Inquiries':
+        return <InquiryListPage inquiries={inquiries} />;
+      case 'Users & Roles':
+        return <UserRolePage users={users} roles={roles} onCreateUser={handleCreateUser} onCreateRole={handleCreateRole} />;
+      default:
+        return <DashboardPage jobs={jobs} inquiries={inquiries} users={users} onNavigate={navigate} />;
+    }
+  };
+
+  useEffect(() => {
+    const currentPath = window.location.pathname;
+
+    if (!isAuthenticated) {
+      if (currentPath !== '/login') {
+        window.history.replaceState({}, '', '/login');
+      }
+      setActivePage('Overview');
+      return;
+    }
+
+    if (currentPath === '/' || currentPath === '/login') {
+      window.history.replaceState({}, '', '/home');
+      setActivePage('Overview');
+      return;
+    }
+
+    const matchingPage = Object.entries(routeMap).find(([, path]) => path === currentPath)?.[0];
+    if (matchingPage) {
+      setActivePage(matchingPage);
+      return;
+    }
+
+    window.history.replaceState({}, '', '/home');
+    setActivePage('Overview');
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const desiredPath = getRouteFromPage(activePage);
+    if (window.location.pathname !== desiredPath) {
+      window.history.pushState({}, '', desiredPath);
+    }
+  }, [activePage, isAuthenticated]);
+
+  const session = getCurrentSession();
+  const currentUser = session?.user;
+  const currentUserName = currentUser?.first_name && currentUser?.last_name
+    ? `${currentUser.first_name} ${currentUser.last_name}`
+    : currentUser?.first_name || currentUser?.name || currentUser?.email || 'Admin';
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} loading={loading} error={error} />;
+  }
+
+  return (
+    <div className="app-shell">
+      <Sidebar
+        activePage={activePage}
+        onNavigate={navigate}
+        onCreateJob={handleQuickCreateJob}
+        onLogout={handleLogout}
+        totalApplicants={totalApplicants}
+        userName={currentUserName}
+      />
+
+      <main className="main-area">
+        <Header
+          title={activePage}
+          onMenuToggle={() => setMobileNavOpen((state) => !state)}
+          onNotify={() => setError('You are all caught up!')}
+          mobileNavOpen={mobileNavOpen}
+        />
+
+        <div className="page-content">
+          {error && <div className="page-alert">{error}</div>}
+          {renderPage()}
+        </div>
+      </main>
+
+      {mobileNavOpen && <div className="nav-backdrop" onClick={() => setMobileNavOpen(false)} />}
+    </div>
+  );
 }
-function Stat({icon,label,value,note,tone}:{icon:React.ReactNode;label:string;value:string;note:string;tone:string}){return <div className="stat-card"><div className="stat-top"><span className={`stat-icon ${tone}`}>{icon}</span><span className="stat-dot"/></div><span className="stat-label">{label}</span><div className="stat-value">{value}</div><div className="stat-note">{note}</div></div>}
-function Status({status}:{status:string}){return <span className={`status-badge status-${status.toLowerCase()}`}><i/>{status}</span>}
-function Avatar({a,large=false}:{a:Applicant;large?:boolean}){return <span className={`avatar candidate-avatar ${a.color} ${large?'avatar-large':''}`}>{a.initials}</span>}
-function JobModal({job,onClose,onSave}:{job:Job|null;onClose:()=>void;onSave:(data:Omit<Job,'id'|'applicants'|'posted'>&{id?:number})=>void}){
- const [form,setForm]=useState({title:job?.title||'',department:job?.department||'Engineering',location:job?.location||'',type:job?.type||'Full-time',mode:job?.mode||'Hybrid',experience:job?.experience||'2–4 years',salary:job?.salary||'',status:job?.status||'Published' as Job['status'],description:job?.description||'',skills:job?.skills||'',education:job?.education||'',vacancies:String(job?.vacancies||1),deadline:job?.deadline||''});const [error,setError]=useState('');const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
- return <div className="modal-backdrop" onClick={onClose}><form className="job-modal" onSubmit={e=>{e.preventDefault();if(!form.title.trim()||!form.location.trim()||!form.description.trim()||!form.skills.trim()){setError('Please complete all required fields marked with *.');return}onSave({...form,id:job?.id,vacancies:Math.max(1,Number(form.vacancies)||1),status:form.status as Job['status']})}} onClick={e=>e.stopPropagation()}><div className="modal-header"><div><div className="page-overline">HIRING WORKSPACE</div><h2>{job?'Edit job posting':'Create a job posting'}</h2><p>Share the right details to attract the right people.</p></div><button type="button" className="close-btn" onClick={onClose}><X size={20}/></button></div><div className="form-progress"><span/><span/><span/></div><div className="form-section-title"><span>01</span><div><b>Role overview</b><small>Start with the essentials candidates look for.</small></div></div><div className="form-grid"><div className="field full-field"><label>Job title <em>*</em></label><input required value={form.title} onChange={e=>set('title',e.target.value)} placeholder="e.g. Senior Flutter Developer"/></div><div className="field"><label>Department / team <em>*</em></label><select value={form.department} onChange={e=>set('department',e.target.value)}><option>Engineering</option><option>Design</option><option>Product</option><option>Human Resources</option><option>Sales</option><option>Marketing</option><option>Finance</option><option>Operations</option><option>Customer Support</option></select></div><div className="field"><label>Employment type <em>*</em></label><select value={form.type} onChange={e=>set('type',e.target.value)}><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option><option>Freelance</option></select></div><div className="field"><label>Work location <em>*</em></label><input required value={form.location} onChange={e=>set('location',e.target.value)} placeholder="e.g. Bengaluru, Karnataka"/></div><div className="field"><label>Work arrangement <em>*</em></label><select value={form.mode} onChange={e=>set('mode',e.target.value)}><option>On-site</option><option>Hybrid</option><option>Remote</option></select></div><div className="field"><label>Experience required <em>*</em></label><select value={form.experience} onChange={e=>set('experience',e.target.value)}><option>Fresher</option><option>0–1 years</option><option>1–3 years</option><option>2–4 years</option><option>3–5 years</option><option>5–8 years</option><option>8+ years</option></select></div><div className="field"><label>Annual salary range</label><input value={form.salary} onChange={e=>set('salary',e.target.value)} placeholder="e.g. ₹6–10 LPA or Not disclosed"/></div><div className="field"><label>Number of openings</label><input type="number" min="1" value={form.vacancies} onChange={e=>set('vacancies',e.target.value)}/></div><div className="field"><label>Application deadline</label><input type="date" value={form.deadline} onChange={e=>set('deadline',e.target.value)}/></div></div><div className="form-section-title section-spaced"><span>02</span><div><b>Job description</b><small>Help applicants understand the role and expectations.</small></div></div><div className="field full-field"><label>Job summary & responsibilities <em>*</em></label><textarea required rows={4} value={form.description} onChange={e=>set('description',e.target.value)} placeholder="Describe the role, day-to-day responsibilities, team and what success looks like..."/><small className="field-help">Use clear, inclusive language and focus on outcomes.</small></div><div className="field full-field"><label>Required skills <em>*</em></label><textarea required rows={2} value={form.skills} onChange={e=>set('skills',e.target.value)} placeholder="e.g. Flutter, Dart, REST APIs, Git, Firebase"/><small className="field-help">Separate skills with commas.</small></div><div className="field full-field"><label>Education & qualifications</label><input value={form.education} onChange={e=>set('education',e.target.value)} placeholder="e.g. Bachelor’s degree or equivalent experience"/></div><div className="field"><label>Posting status</label><select value={form.status} onChange={e=>set('status',e.target.value)}><option>Published</option><option>Draft</option><option>Closed</option></select></div>{error&&<div className="form-error">{error}</div>}<div className="modal-footer"><button type="button" className="outline-btn" onClick={onClose}>Cancel</button><button type="submit" className="primary-btn">{form.status==='Draft'?'Save draft':job?'Save changes':'Publish job'} <ArrowUpRight size={16}/></button></div></form></div>
-}
-export default App;
