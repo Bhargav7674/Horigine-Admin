@@ -51,17 +51,25 @@ export const authService = {
       headers: {
         'Content-Type': 'application/json',
       },
-    }).then((response) => ({
-      token: response.access_token,
-      user: {
-        id: 'admin',
-        email: payload.email,
-        first_name: payload.email.split('@')[0] || 'Admin',
-        last_name: '',
-        role: 'admin',
-        name: payload.email,
-      } as AuthUser,
-    })),
+    }).then((response) => {
+      if (!response.access_token) {
+        throw new Error('No access token returned from login.');
+      }
+
+      setStoredToken(response.access_token);
+
+      return {
+        token: response.access_token,
+        user: {
+          id: 'admin',
+          email: payload.email,
+          first_name: payload.email.split('@')[0] || 'Admin',
+          last_name: '',
+          role: 'admin',
+          name: payload.email,
+        } as AuthUser,
+      };
+    }),
 
   getMe: () =>
     apiRequest<AuthUser>('/auth/me', {

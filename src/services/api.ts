@@ -11,19 +11,6 @@ const readStoredValue = (key: string) => {
 };
 
 const getStoredToken = () => readStoredValue('horigine_admin_token');
-const getApiKey = () => {
-  const storedApiKey = readStoredValue('horigine_admin_api_key');
-  if (storedApiKey) return storedApiKey;
-
-  const envValue = [
-    import.meta.env.VITE_API_KEY,
-    import.meta.env.VITE_ADMIN_API_KEY,
-    import.meta.env.VITE_HORIGINE_API_KEY,
-    import.meta.env.VITE_INQUIRY_API_KEY,
-  ].find((value): value is string => Boolean(value && String(value).trim()));
-
-  return envValue?.trim() ?? '';
-};
 
 export const setStoredToken = (token: string | null) => {
   if (token) {
@@ -52,11 +39,6 @@ const buildHeaders = (headers?: Record<string, string>, includeAuth = true) => {
   const token = getStoredToken();
   if (includeAuth && token) {
     merged.Authorization = `Bearer ${token}`;
-  }
-
-  const apiKey = getApiKey();
-  if (apiKey) {
-    merged['X-API-Key'] = apiKey;
   }
 
   return merged;
@@ -165,7 +147,7 @@ export const api = {
     return apiRequest<InquiryListResponse>(`/inquiries?${query.toString()}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
-    }, false);
+    }, true);
   },
   getUsers: (): Promise<UserRecord[]> => apiRequest('/users'),
   createUser: (payload: Partial<UserRecord>): Promise<UserRecord> => apiRequest('/users', {

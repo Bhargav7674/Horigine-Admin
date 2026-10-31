@@ -6,7 +6,7 @@ import { JobListPage } from './components/jobs/JobListPage';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { UserRolePage } from './components/users/UserRolePage';
-import { api, normalizeApiError, setStoredApiKey } from './services/api';
+import { api, normalizeApiError } from './services/api';
 import { authService, getCurrentSession, persistSession } from './services/authService';
 import type { Inquiry, Job, JobCreatePayload, RoleRecord, UserRecord } from './types';
 
@@ -65,11 +65,6 @@ export default function App() {
 
     try {
       const loginResponse = await authService.login({ email, password });
-
-      persistSession({
-        token: loginResponse.token,
-        user: loginResponse.user,
-      });
 
       const meUser = await authService.getMe();
       persistSession({
