@@ -21,7 +21,6 @@ export function UserRolePage({ users, roles, onCreateUser }: UserRolePageProps) 
     email: '',
     password: '',
   });
-
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase();
     return users.filter((user) => `${user.name} ${user.email} ${user.role}`.toLowerCase().includes(term));
