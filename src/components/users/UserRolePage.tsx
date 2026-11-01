@@ -1,18 +1,26 @@
-import { Search, ShieldCheck, UserPlus } from 'lucide-react';
+import { Search, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { RoleRecord, UserRecord } from '../../types';
 
 interface UserRolePageProps {
   users: UserRecord[];
   roles: RoleRecord[];
-  onCreateUser: (payload: Partial<UserRecord>) => Promise<void>;
-  onCreateRole: (payload: Partial<RoleRecord>) => Promise<void>;
+  onCreateUser: (payload: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+  }) => Promise<void>;
 }
 
-export function UserRolePage({ users, roles, onCreateUser, onCreateRole }: UserRolePageProps) {
+export function UserRolePage({ users, roles, onCreateUser }: UserRolePageProps) {
   const [search, setSearch] = useState('');
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'admin' });
-  const [roleForm, setRoleForm] = useState({ name: '', description: '' });
+  const [userForm, setUserForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+  });
 
   const filteredUsers = useMemo(() => {
     const term = search.toLowerCase();
@@ -22,13 +30,7 @@ export function UserRolePage({ users, roles, onCreateUser, onCreateRole }: UserR
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await onCreateUser(userForm);
-    setUserForm({ name: '', email: '', role: 'admin' });
-  };
-
-  const handleCreateRole = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await onCreateRole(roleForm);
-    setRoleForm({ name: '', description: '' });
+    setUserForm({ first_name: '', last_name: '', email: '', password: '' });
   };
 
   return (
@@ -88,44 +90,23 @@ export function UserRolePage({ users, roles, onCreateUser, onCreateRole }: UserR
               </div>
             </div>
             <div className="stacked-field">
-              <label>Name</label>
-              <input value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} placeholder="Jane Smith" />
+              <label>First name</label>
+              <input value={userForm.first_name} onChange={(e) => setUserForm({ ...userForm, first_name: e.target.value })} placeholder="Jane" />
+            </div>
+            <div className="stacked-field">
+              <label>Last name</label>
+              <input value={userForm.last_name} onChange={(e) => setUserForm({ ...userForm, last_name: e.target.value })} placeholder="Smith" />
             </div>
             <div className="stacked-field">
               <label>Email</label>
               <input value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} placeholder="jane@horigine.com" />
             </div>
             <div className="stacked-field">
-              <label>Role</label>
-              <select value={userForm.role} onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="staff">Staff</option>
-                <option value="viewer">Viewer</option>
-              </select>
+              <label>Password</label>
+              <input type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} placeholder="Enter password" />
             </div>
             <button type="submit" className="primary-btn">
               <UserPlus size={16} /> Create user
-            </button>
-          </form>
-
-          <form className="panel compact-form" onSubmit={handleCreateRole}>
-            <div className="panel-heading">
-              <div>
-                <h3>Create role</h3>
-                <p>Define access for a new permission group.</p>
-              </div>
-            </div>
-            <div className="stacked-field">
-              <label>Role name</label>
-              <input value={roleForm.name} onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })} placeholder="Hiring Manager" />
-            </div>
-            <div className="stacked-field">
-              <label>Description</label>
-              <textarea rows={4} value={roleForm.description} onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })} placeholder="Can review applicants, update jobs and assign interviews." />
-            </div>
-            <button type="submit" className="primary-btn">
-              <ShieldCheck size={16} /> Create role
             </button>
           </form>
         </div>

@@ -166,21 +166,18 @@ export default function App() {
     }
   };
 
-  const handleCreateUser = async (payload: Partial<UserRecord>) => {
+  const handleCreateUser = async (payload: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+  }) => {
     try {
-      const created = await api.createUser(payload);
+      const created = await api.bootstrapCreateUser(payload);
       setUsers((current) => [created, ...current]);
+      setError('');
     } catch (userError) {
       setError(normalizeApiError(userError));
-    }
-  };
-
-  const handleCreateRole = async (payload: Partial<RoleRecord>) => {
-    try {
-      const created = await api.createRole(payload);
-      setRoles((current) => [created, ...current]);
-    } catch (roleError) {
-      setError(normalizeApiError(roleError));
     }
   };
 
@@ -220,7 +217,7 @@ export default function App() {
       case 'Inquiries':
         return <InquiryListPage inquiries={inquiries} />;
       case 'Users & Roles':
-        return <UserRolePage users={users} roles={roles} onCreateUser={handleCreateUser} onCreateRole={handleCreateRole} />;
+        return <UserRolePage users={users} roles={roles} onCreateUser={handleCreateUser} />;
       default:
         return <DashboardPage jobs={jobs} inquiries={inquiries} users={users} onNavigate={navigate} />;
     }

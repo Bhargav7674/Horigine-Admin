@@ -101,3 +101,19 @@ export interface DashboardStats {
   users_count: number;
   active_roles: number;
 }
+
+export interface GuestApplication {
+  id: string | number;
+  job_id?: string | number;
+  job_title?: string;
+  full_name?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  resume_url?: string | null;
+  created_at?: string;
+  submitted_at?: string;
+  cover_letter?: string;
+  message?: string;
+}

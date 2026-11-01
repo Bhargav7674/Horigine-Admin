@@ -1,4 +1,4 @@
-import type { DashboardStats, InquiryListResponse, Job, JobCreatePayload, RoleRecord, UserRecord } from '../types';
+import type { DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, UserRecord } from '../types';
 
 const API_BASE_URL = 'https://horizon-staffing.onrender.com/api/v1';
 
@@ -11,6 +11,7 @@ const readStoredValue = (key: string) => {
 };
 
 const getStoredToken = () => readStoredValue('horigine_admin_token');
+const getStoredBootstrapToken = () => readStoredValue('horigine_admin_bootstrap_token') || ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_ADMIN_BOOTSTRAP_TOKEN ?? '');
 
 export const setStoredToken = (token: string | null) => {
   if (token) {
@@ -21,13 +22,13 @@ export const setStoredToken = (token: string | null) => {
   localStorage.removeItem('horigine_admin_token');
 };
 
-export const setStoredApiKey = (apiKey: string | null) => {
-  if (apiKey) {
-    localStorage.setItem('horigine_admin_api_key', apiKey.trim());
+export const setStoredBootstrapToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem('horigine_admin_bootstrap_token', token.trim());
     return;
   }
 
-  localStorage.removeItem('horigine_admin_api_key');
+  localStorage.removeItem('horigine_admin_bootstrap_token');
 };
 
 const buildHeaders = (headers?: Record<string, string>, includeAuth = true) => {
@@ -150,11 +151,17 @@ export const api = {
     }, true);
   },
   getUsers: (): Promise<UserRecord[]> => apiRequest('/users'),
-  createUser: (payload: Partial<UserRecord>): Promise<UserRecord> => apiRequest('/users', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
-  }),
+  bootstrapCreateUser: (payload: { email: string; password: string; first_name: string; last_name: string }): Promise<UserRecord> => {
+    const bootstrapToken = getStoredBootstrapToken();
+    return apiRequest('/auth/bootstrap-admin', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(bootstrapToken ? { 'X-Admin-Bootstrap-Token': bootstrapToken } : {}),
+      },
+    });
+  },
   getRoles: (): Promise<RoleRecord[]> => apiRequest('/roles'),
   createRole: (payload: Partial<RoleRecord>): Promise<RoleRecord> => apiRequest('/roles', {
     method: 'POST',
@@ -162,6 +169,42 @@ export const api = {
     headers: { 'Content-Type': 'application/json' },
   }),
   getDashboardStats: (): Promise<DashboardStats> => apiRequest('/dashboard/admin'),
+  getGuestApplicationsByJob: (jobId: number | string): Promise<GuestApplication[]> => apiRequest(`/applications/jobs/${jobId}/guest`),
+  downloadGuestResume: async (applicationId: number | string) => {
+    const response = await fetch(`${API_BASE_URL}/applications/guest/${applicationId}/resume`, {
+      headers: buildHeaders({ Accept: 'application/pdf,application/octet-stream,*/*' }),
+    });
+
+    if (!response.ok) {
+      let message = `Resume download failed with status ${response.status}`;
+      try {
+        const errorData = await response.json();
+        const nestedMessage = errorData?.error?.message ?? errorData?.message ?? errorData?.detail ?? errorData?.error;
+        if (nestedMessage) message = nestedMessage;
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) message = text;
+        } catch {
+          // ignore
+        }
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `resume-${applicationId}.pdf`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+  },
+  updateApplicationStatus: (applicationId: number | string, status: string): Promise<{ success?: boolean; status?: string }> => apiRequest(`/applications/${applicationId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+    headers: { 'Content-Type': 'application/json' },
+  }),
 };
 
 export const normalizeApiError = (error: unknown) => {

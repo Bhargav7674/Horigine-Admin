@@ -1,5 +1,7 @@
-import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, FileText, Sparkles, UsersRound } from 'lucide-react';
-import type { Inquiry, Job, UserRecord } from '../../types';
+import { ArrowUpRight, BriefcaseBusiness, CheckCircle2, Download, FileText, Sparkles, UsersRound } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { api } from '../../services/api';
+import type { GuestApplication, Inquiry, Job, UserRecord } from '../../types';
 import { StatCard } from '../ui/StatCard';
 import { StatusBadge } from '../ui/StatusBadge';
 
@@ -10,9 +12,77 @@ interface DashboardPageProps {
   onNavigate: (page: string) => void;
 }
 
+const statusOptions = ['new', 'reviewing', 'interview', 'accepted', 'rejected'];
+
 export function DashboardPage({ jobs, inquiries, users, onNavigate }: DashboardPageProps) {
+  const [guestApplications, setGuestApplications] = useState<GuestApplication[]>([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+  const [statusError, setStatusError] = useState('');
+
   const publishedJobs = jobs.filter((job) => job.status === 'Published').length;
   const newInquiries = inquiries.filter((inquiry) => (inquiry.status ?? 'New') === 'New').length;
+
+  useEffect(() => {
+    const loadGuestApplications = async () => {
+      if (!jobs.length) {
+        setGuestApplications([]);
+        return;
+      }
+
+      try {
+        setLoadingApplications(true);
+        const batches = await Promise.all(
+          jobs.slice(0, 4).map(async (job) => {
+            try {
+              const response = await api.getGuestApplicationsByJob(job.id);
+              return (response ?? []).map((application) => ({
+                ...application,
+                job_title: application.job_title ?? job.title,
+                status: application.status ?? 'new',
+              }));
+            } catch {
+              return [] as GuestApplication[];
+            }
+          }),
+        );
+
+        setGuestApplications(batches.flat());
+      } catch {
+        setGuestApplications([]);
+      } finally {
+        setLoadingApplications(false);
+      }
+    };
+
+    void loadGuestApplications();
+  }, [jobs]);
+
+  const applicationSummary = useMemo(() => {
+    const total = guestApplications.length;
+    const reviewed = guestApplications.filter((application) => (application.status ?? 'new').toLowerCase() !== 'new').length;
+    return { total, reviewed };
+  }, [guestApplications]);
+
+  const handleDownloadResume = async (applicationId: number | string) => {
+    try {
+      setStatusError('');
+      await api.downloadGuestResume(applicationId);
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Unable to download resume.');
+    }
+  };
+
+  const handleStatusChange = async (applicationId: number | string, status: string) => {
+    try {
+      setStatusError('');
+      await api.updateApplicationStatus(applicationId, status);
+      setGuestApplications((current) => current.map((application) => (
+        String(application.id) === String(applicationId) ? { ...application, status } : application
+      )));
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Unable to update application status.');
+    }
+  };
 
   return (
     <>
@@ -128,6 +198,69 @@ export function DashboardPage({ jobs, inquiries, users, onNavigate }: DashboardP
           </button>
         </section>
       </div>
+
+      <section className="panel table-panel guest-applications-panel" style={{ marginTop: '22px' }}>
+        <div className="panel-heading">
+          <div>
+            <h3>Guest applications</h3>
+            <p>Submissions from website applicants for each active job.</p>
+          </div>
+        </div>
+
+        {statusError && <div className="page-alert" style={{ margin: '0 18px 14px' }}>{statusError}</div>}
+
+        {loadingApplications ? (
+          <div className="empty-state" style={{ padding: '20px 18px 24px' }}>Loading guest applications…</div>
+        ) : guestApplications.length === 0 ? (
+          <div className="empty-state" style={{ padding: '20px 18px 24px' }}>No guest applications submitted yet.</div>
+        ) : (
+          <div className="application-table-wrap">
+            <table className="data-table application-table">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Applicant</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Resume</th>
+                </tr>
+              </thead>
+              <tbody>
+                {guestApplications.map((application) => (
+                  <tr key={String(application.id)}>
+                    <td>{application.job_title ?? `Job #${application.job_id ?? '-'}`}</td>
+                    <td>{application.full_name ?? application.name ?? 'Guest applicant'}</td>
+                    <td>{application.email ?? '—'}</td>
+                    <td>
+                      <select
+                        className="status-select"
+                        value={(application.status ?? 'new').toLowerCase()}
+                        onChange={(event) => handleStatusChange(application.id, event.target.value)}
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button type="button" className="download-btn" onClick={() => handleDownloadResume(application.id)}>
+                        <Download size={13} /> Preview resume
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="panel-foot-meta">
+          <span>{applicationSummary.total} total submissions</span>
+          <span>{applicationSummary.reviewed} reviewed</span>
+        </div>
+      </section>
     </>
   );
 }

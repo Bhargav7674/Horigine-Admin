@@ -8,8 +8,8 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
-  const [email, setEmail] = useState('admin@horigine.com');
-  const [password, setPassword] = useState('Horigine@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -81,7 +81,7 @@ export function LoginScreen({ onLogin, loading, error }: LoginScreenProps) {
               id="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@horigine.com"
+              placeholder="Enter your Email"
               autoComplete="username"
             />
           </div>
