@@ -117,3 +117,20 @@ export interface GuestApplication {
   cover_letter?: string;
   message?: string;
 }
+
+export interface SocialLink {
+  id?: string | number;
+  platform: string;
+  url: string;
+  is_active: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SocialLinkPayload {
+  platform: string;
+  url: string;
+  is_active?: boolean;
+  display_order?: number;
+}

@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, ChevronDown, FileText, LayoutDashboard, LogOut, Plus, Sparkles, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, ChevronDown, FileText, Globe, LayoutDashboard, LogOut, Plus, Sparkles, UsersRound } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface SidebarProps {
@@ -15,6 +15,7 @@ const navItems: Array<{ label: string; icon: ReactNode; count?: number }> = [
   { label: 'Job postings', icon: <BriefcaseBusiness size={18} /> },
   { label: 'Inquiries', icon: <FileText size={18} /> },
   { label: 'Users & Roles', icon: <UsersRound size={18} /> },
+  { label: 'Social Links', icon: <Globe size={18} /> },
 ];
 
 export function Sidebar({ activePage, onNavigate, onCreateJob, onLogout, totalApplicants, userName = 'Admin' }: SidebarProps) {

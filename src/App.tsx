@@ -6,9 +6,10 @@ import { JobListPage } from './components/jobs/JobListPage';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { UserRolePage } from './components/users/UserRolePage';
+import { SocialLinksPage } from './components/social/SocialLinksPage';
 import { api, normalizeApiError } from './services/api';
 import { authService, getCurrentSession, persistSession } from './services/authService';
-import type { Inquiry, Job, JobCreatePayload, RoleRecord, UserRecord } from './types';
+import type { Inquiry, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from './types';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(Boolean(getCurrentSession()));
@@ -18,6 +19,7 @@ export default function App() {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -27,6 +29,7 @@ export default function App() {
     'Job postings': '/jobs',
     Inquiries: '/inquiries',
     'Users & Roles': '/users',
+    'Social Links': '/social-links',
   };
 
   const getRouteFromPage = (page: string) => routeMap[page] ?? '/home';
@@ -38,17 +41,19 @@ export default function App() {
 
   const loadData = async () => {
     try {
-      const [jobsData, inquiriesPage, usersData, rolesData] = await Promise.all([
+      const [jobsData, inquiriesPage, usersData, rolesData, socialLinksData] = await Promise.all([
         api.getJobs().catch(() => []),
         api.getInquiries({ page: 1, page_size: 20 }).catch(() => ({ items: [] as Inquiry[], page: 1, page_size: 20, total: 0 })),
         api.getUsers().catch(() => []),
         api.getRoles().catch(() => []),
+        api.getSocialLinks().catch(() => []),
       ]);
 
       setJobs(jobsData);
       setInquiries(inquiriesPage.items ?? []);
       setUsers(usersData);
       setRoles(rolesData);
+      setSocialLinks(socialLinksData);
     } catch {
       setError('Unable to load dashboard data right now.');
     }
@@ -181,6 +186,49 @@ export default function App() {
     }
   };
 
+  const loadSocialLinks = async () => {
+    try {
+      const links = await api.getSocialLinks();
+      setSocialLinks(links);
+    } catch (socialError) {
+      setSocialLinks([]);
+      setError(normalizeApiError(socialError));
+    }
+  };
+
+  const handleCreateSocialLink = async (payload: SocialLinkPayload) => {
+    try {
+      const created = await api.createSocialLink(payload);
+      setSocialLinks((current) => [...current, created]);
+      setError('');
+    } catch (socialError) {
+      setError(normalizeApiError(socialError));
+      throw socialError;
+    }
+  };
+
+  const handleUpdateSocialLink = async (linkId: number | string, payload: Partial<SocialLinkPayload>) => {
+    try {
+      const updated = await api.updateSocialLink(linkId, payload);
+      setSocialLinks((current) => current.map((link) => String(link.id ?? '') === String(linkId) ? { ...link, ...updated } : link));
+      setError('');
+    } catch (socialError) {
+      setError(normalizeApiError(socialError));
+      throw socialError;
+    }
+  };
+
+  const handleDeleteSocialLink = async (linkId: number | string) => {
+    try {
+      await api.deleteSocialLink(linkId);
+      setSocialLinks((current) => current.filter((link) => String(link.id ?? '') !== String(linkId)));
+      setError('');
+    } catch (socialError) {
+      setError(normalizeApiError(socialError));
+      throw socialError;
+    }
+  };
+
   const navigate = (page: string) => {
     setActivePage(page);
     if (page !== 'Job postings') {
@@ -218,6 +266,16 @@ export default function App() {
         return <InquiryListPage inquiries={inquiries} />;
       case 'Users & Roles':
         return <UserRolePage users={users} roles={roles} onCreateUser={handleCreateUser} />;
+      case 'Social Links':
+        return (
+          <SocialLinksPage
+            socialLinks={socialLinks}
+            onCreateLink={handleCreateSocialLink}
+            onUpdateLink={handleUpdateSocialLink}
+            onDeleteLink={handleDeleteSocialLink}
+            onRefresh={loadData}
+          />
+        );
       default:
         return <DashboardPage jobs={jobs} inquiries={inquiries} users={users} onNavigate={navigate} />;
     }

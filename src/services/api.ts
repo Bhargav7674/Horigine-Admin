@@ -1,6 +1,7 @@
-import type { DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, UserRecord } from '../types';
+import type { DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from '../types';
 
-const API_BASE_URL = 'https://horizon-staffing.onrender.com/api/v1';
+const rawApiBaseUrl = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL ?? 'https://horizon-staffing-6m8m.onrender.com/api/v1';
+const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
 
 const readStoredValue = (key: string) => {
   try {
@@ -203,6 +204,43 @@ export const api = {
   updateApplicationStatus: (applicationId: number | string, status: string): Promise<{ success?: boolean; status?: string }> => apiRequest(`/applications/${applicationId}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
+    headers: { 'Content-Type': 'application/json' },
+  }),
+  getSocialLinks: (): Promise<SocialLink[]> => apiRequest('/social-links/admin').then((payload) => {
+    if (payload && typeof payload === 'object' && 'data' in payload && Array.isArray((payload as { data?: unknown }).data)) {
+      return (payload as { data: SocialLink[] }).data;
+    }
+
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    return [] as SocialLink[];
+  }),
+  createSocialLink: (payload: SocialLinkPayload): Promise<SocialLink> => apiRequest('/social-links/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  }).then((response) => {
+    if (response && typeof response === 'object' && 'data' in response && response.data && typeof response.data === 'object') {
+      return response.data as SocialLink;
+    }
+
+    return response as SocialLink;
+  }),
+  updateSocialLink: (linkId: number | string, payload: Partial<SocialLinkPayload>): Promise<SocialLink> => apiRequest(`/social-links/${linkId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+  }).then((response) => {
+    if (response && typeof response === 'object' && 'data' in response && response.data && typeof response.data === 'object') {
+      return response.data as SocialLink;
+    }
+
+    return response as SocialLink;
+  }),
+  deleteSocialLink: (linkId: number | string): Promise<void> => apiRequest(`/social-links/${linkId}`, {
+    method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
   }),
 };
