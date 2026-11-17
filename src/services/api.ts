@@ -280,6 +280,17 @@ export const api = {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
   }),
+  getGuestApplicationsByJob: (jobId: number | string): Promise<GuestApplication[]> => apiRequest(`/applications/jobs/${jobId}/guest`).then((payload) => {
+    if (payload && typeof payload === 'object' && 'data' in payload && Array.isArray((payload as { data?: unknown }).data)) {
+      return (payload as { data: GuestApplication[] }).data;
+    }
+
+    if (Array.isArray(payload)) {
+      return payload as GuestApplication[];
+    }
+
+    return [] as GuestApplication[];
+  }),
 };
 
 export const normalizeApiError = (error: unknown) => {

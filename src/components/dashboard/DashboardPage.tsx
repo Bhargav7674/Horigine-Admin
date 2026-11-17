@@ -35,7 +35,7 @@ export function DashboardPage({ jobs, inquiries, users, onNavigate }: DashboardP
           jobs.slice(0, 4).map(async (job) => {
             try {
               const response = await api.getGuestApplicationsByJob(job.id);
-              return (response ?? []).map((application) => ({
+              return (response ?? []).map((application: GuestApplication) => ({
                 ...application,
                 job_title: application.job_title ?? job.title,
                 status: application.status ?? 'new',
