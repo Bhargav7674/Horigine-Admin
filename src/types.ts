@@ -134,3 +134,14 @@ export interface SocialLinkPayload {
   is_active?: boolean;
   display_order?: number;
 }
+
+export interface Company {
+  id?: string | number;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CompanyCreatePayload {
+  name: string;
+}

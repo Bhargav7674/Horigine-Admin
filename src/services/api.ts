@@ -1,4 +1,4 @@
-import type { DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from '../types';
+import type { Company, CompanyCreatePayload, DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from '../types';
 
 const rawApiBaseUrl = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL ?? 'https://api.horigineitsolutions.com/api/v1';
 const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
@@ -164,13 +164,50 @@ export const api = {
     });
   },
   getRoles: (): Promise<RoleRecord[]> => apiRequest('/roles'),
-  createRole: (payload: Partial<RoleRecord>): Promise<RoleRecord> => apiRequest('/roles', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
+  getCompanies: (): Promise<Company[]> => apiRequest('/companies').then((payload) => {
+    if (payload && typeof payload === 'object' && 'data' in payload && Array.isArray((payload as { data?: unknown }).data)) {
+      return (payload as { data: Company[] }).data;
+    }
+
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    return [] as Company[];
   }),
-  getDashboardStats: (): Promise<DashboardStats> => apiRequest('/dashboard/admin'),
-  getGuestApplicationsByJob: (jobId: number | string): Promise<GuestApplication[]> => apiRequest(`/applications/jobs/${jobId}/guest`),
+  createCompany: (payload: CompanyCreatePayload): Promise<Company> => {
+    const params = new URLSearchParams({ name: payload.name.trim() });
+    return apiRequest(`/companies/?${params.toString()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }).then((response) => {
+      if (response && typeof response === 'object' && 'data' in response && response.data && typeof response.data === 'object') {
+        return response.data as Company;
+      }
+
+      return response as Company;
+    });
+  },
+  resolveCompanyId: async (companyName: string): Promise<number> => {
+    const name = companyName.trim();
+    if (!name) {
+      throw new Error('Company name is required.');
+    }
+
+    const companies = await api.getCompanies();
+    const match = companies.find((company) => String(company.name || '').trim().toLowerCase() === name.toLowerCase());
+
+    if (match && match.id !== undefined && match.id !== null) {
+      return Number(match.id);
+    }
+
+    const created = await api.createCompany({ name });
+    if (created && created.id !== undefined && created.id !== null) {
+      return Number(created.id);
+    }
+
+    throw new Error('Could not create or resolve the company for this job.');
+  },
   downloadGuestResume: async (applicationId: number | string) => {
     const response = await fetch(`${API_BASE_URL}/applications/guest/${applicationId}/resume`, {
       headers: buildHeaders({ Accept: 'application/pdf,application/octet-stream,*/*' }),

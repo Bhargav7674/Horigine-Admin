@@ -1,10 +1,12 @@
 import { Download, Filter, Loader2, Pencil, Plus, Search, Trash2, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { Job, JobCreatePayload } from '../../types';
+import type { Company, Job, JobCreatePayload } from '../../types';
 import { StatusBadge } from '../ui/StatusBadge';
+import { api } from '../../services/api';
 
 interface JobListPageProps {
   jobs: Job[];
+  companies: Company[];
   onCreateJob: (payload: Partial<JobCreatePayload>) => Promise<void> | void;
   onUpdateJob: (jobId: number | string, payload: Partial<JobCreatePayload>) => Promise<void> | void;
   onDeleteJob: (jobId: number | string) => Promise<void> | void;
@@ -13,8 +15,22 @@ interface JobListPageProps {
   onCreateFormOpened?: () => void;
 }
 
-const emptyJobForm = {
+interface JobFormState {
+  title: string;
+  company_name: string;
+  company_id: number;
+  description: string;
+  requirements: string;
+  location: string;
+  job_type: string;
+  experience_level: string;
+  salary_min: number;
+  salary_max: number;
+}
+
+const emptyJobForm: JobFormState = {
   title: '',
+  company_name: '',
   company_id: 1,
   description: '',
   requirements: '',
@@ -25,7 +41,7 @@ const emptyJobForm = {
   salary_max: 0,
 };
 
-export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRefresh, initialCreateOpen = false, onCreateFormOpened }: JobListPageProps) {
+export function JobListPage({ jobs, companies, onCreateJob, onUpdateJob, onDeleteJob, onRefresh, initialCreateOpen = false, onCreateFormOpened }: JobListPageProps) {
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(initialCreateOpen);
@@ -55,14 +71,14 @@ export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRef
   const validateJobForm = () => {
     const trimmedTitle = String(form.title ?? '').trim();
     const trimmedDescription = String(form.description ?? '').trim();
-    const companyId = Number(form.company_id ?? 0);
+    const trimmedCompanyName = String(form.company_name ?? '').trim();
 
     if (!trimmedTitle) {
       return 'Job title is required.';
     }
 
-    if (!companyId) {
-      return 'Company ID is required.';
+    if (!trimmedCompanyName) {
+      return 'Company name is required.';
     }
 
     if (!trimmedDescription) {
@@ -100,12 +116,13 @@ export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRef
     setSuccessMessage('');
 
     try {
-      await onCreateJob(form);
+      const companyId = await api.resolveCompanyId(form.company_name);
+      await onCreateJob({ ...form, company_id: companyId });
       setForm(emptyJobForm);
       setShowCreateForm(false);
       setSuccessMessage('Job created successfully.');
-    } catch {
-      setFormError('Unable to create the job. Please try again.');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to create the job. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -117,6 +134,7 @@ export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRef
     setSuccessMessage('');
     setForm({
       title: job.title ?? '',
+      company_name: job.company_id ? String(job.company_id) : '',
       company_id: Number(job.company_id ?? 1),
       description: job.description ?? '',
       requirements: job.description ?? '',
@@ -144,12 +162,13 @@ export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRef
     setSuccessMessage('');
 
     try {
-      await onUpdateJob(editingJobId, form);
+      const companyId = await api.resolveCompanyId(form.company_name);
+      await onUpdateJob(editingJobId, { ...form, company_id: companyId });
       setEditingJobId(null);
       setForm(emptyJobForm);
       setSuccessMessage('Job updated successfully.');
-    } catch {
-      setFormError('Unable to update the job. Please try again.');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to update the job. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -197,8 +216,8 @@ export function JobListPage({ jobs, onCreateJob, onUpdateJob, onDeleteJob, onRef
           </div>
 
           <div className="stacked-field">
-            <label>Company ID</label>
-            <input type="number" value={form.company_id} onChange={(e) => setForm({ ...form, company_id: Number(e.target.value || 0) })} placeholder="1" />
+            <label>Company Name</label>
+            <input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} placeholder="Acme Corp" />
           </div>
 
           <div className="stacked-field">

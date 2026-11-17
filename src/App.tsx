@@ -9,7 +9,7 @@ import { UserRolePage } from './components/users/UserRolePage';
 import { SocialLinksPage } from './components/social/SocialLinksPage';
 import { api, normalizeApiError } from './services/api';
 import { authService, getCurrentSession, persistSession } from './services/authService';
-import type { Inquiry, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from './types';
+import type { Company, Inquiry, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from './types';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(Boolean(getCurrentSession()));
@@ -20,6 +20,7 @@ export default function App() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -41,11 +42,12 @@ export default function App() {
 
   const loadData = async () => {
     try {
-      const [jobsData, inquiriesPage, usersData, rolesData, socialLinksData] = await Promise.all([
+      const [jobsData, inquiriesPage, usersData, rolesData, companiesData, socialLinksData] = await Promise.all([
         api.getJobs().catch(() => []),
         api.getInquiries({ page: 1, page_size: 20 }).catch(() => ({ items: [] as Inquiry[], page: 1, page_size: 20, total: 0 })),
         api.getUsers().catch(() => []),
         api.getRoles().catch(() => []),
+        api.getCompanies().catch(() => []),
         api.getSocialLinks().catch(() => []),
       ]);
 
@@ -53,6 +55,7 @@ export default function App() {
       setInquiries(inquiriesPage.items ?? []);
       setUsers(usersData);
       setRoles(rolesData);
+      setCompanies(companiesData);
       setSocialLinks(socialLinksData);
     } catch {
       setError('Unable to load dashboard data right now.');
@@ -129,6 +132,7 @@ export default function App() {
       const created = await api.createJob(jobPayload);
       setJobs((current) => [created, ...current]);
       setError('');
+      await loadData();
     } catch (jobError) {
       setError(normalizeApiError(jobError));
     }
@@ -156,6 +160,7 @@ export default function App() {
       const updated = await api.updateJob(jobId, jobPayload);
       setJobs((current) => current.map((job) => String(job.id) === String(jobId) ? { ...job, ...updated } : job));
       setError('');
+      await loadData();
     } catch (jobError) {
       setError(normalizeApiError(jobError));
     }
@@ -166,6 +171,7 @@ export default function App() {
       await api.deleteJob(jobId);
       setJobs((current) => current.filter((job) => String(job.id) !== String(jobId)));
       setError('');
+      await loadData();
     } catch (jobError) {
       setError(normalizeApiError(jobError));
     }
@@ -254,6 +260,7 @@ export default function App() {
         return (
           <JobListPage
             jobs={jobs}
+            companies={companies}
             onCreateJob={handleCreateJob}
             onUpdateJob={handleUpdateJob}
             onDeleteJob={handleDeleteJob}
