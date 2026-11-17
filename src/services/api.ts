@@ -1,6 +1,6 @@
 import type { DashboardStats, GuestApplication, InquiryListResponse, Job, JobCreatePayload, RoleRecord, SocialLink, SocialLinkPayload, UserRecord } from '../types';
 
-const rawApiBaseUrl = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL ?? 'https://horizon-staffing-6m8m.onrender.com/api/v1';
+const rawApiBaseUrl = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL ?? 'https://api.horigineitsolutions.com/api/v1';
 const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '');
 
 const readStoredValue = (key: string) => {
